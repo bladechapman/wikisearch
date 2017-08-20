@@ -17,39 +17,39 @@ getPath :: FilePath -> IO FullyQualifiedPath
 getPath path = do
   exists <- isFileOrDirectoryFromRoot path
   if exists
-    then return (Just path)
-    else return Nothing
+    then return (FullyQualifiedPath (Just path))
+    else return (FullyQualifiedPath Nothing)
 
 -- | List the directories of a fully qualified path pointing to a directory
 directoriesForPath :: FullyQualifiedPath -> IO [FullyQualifiedPath]
-directoriesForPath Nothing = return []
-directoriesForPath (Just path) = do
-  contentPaths <- contentsForPath (Just path)
+directoriesForPath (FullyQualifiedPath Nothing) = return []
+directoriesForPath fqp = do
+  contentPaths <- contentsForPath fqp
   filterM ((fmap not) . isFileForFullyQualifiedPath) contentPaths
 
 -- | List the files of a fully qualified path pointing to a directory
 filesForPath :: FullyQualifiedPath -> IO [FullyQualifiedPath]
-filesForPath Nothing = return []
-filesForPath (Just path) = do
-  contentPaths <- contentsForPath (Just path)
+filesForPath (FullyQualifiedPath Nothing) = return []
+filesForPath fqp = do
+  contentPaths <- contentsForPath fqp
   filterM isFileForFullyQualifiedPath contentPaths
 
 -- | List the full contents of a fully qualified path pointing to a directory
 contentsForPath :: FullyQualifiedPath -> IO [FullyQualifiedPath]
-contentsForPath Nothing = return []
-contentsForPath (Just path) = do
-  isDirectory <- isDirectoryForFullyQualifiedPath (Just path)
+contentsForPath (FullyQualifiedPath Nothing) = return []
+contentsForPath (FullyQualifiedPath (Just path)) = do
+  isDirectory <- isDirectoryForFullyQualifiedPath (FullyQualifiedPath (Just path))
   if isDirectory
     then do
       contents <- listDirectory path
-      return (map (\contentPath -> Just (path ++ "/" ++ contentPath)) contents)
+      return (map (\contentPath -> FullyQualifiedPath (Just (path ++ "/" ++ contentPath))) contents)
     else
       return []
 
 -- | Gives the contents of a file given a fully qualified path
 readFileForPath :: FullyQualifiedPath -> IO String
-readFileForPath Nothing = return ""
-readFileForPath (Just path) = do
+readFileForPath (FullyQualifiedPath Nothing) = return ""
+readFileForPath (FullyQualifiedPath (Just path)) = do
   isDirectory <- doesDirectoryExist path
   if isDirectory
     then return ""
@@ -59,7 +59,8 @@ readFileForPath (Just path) = do
 {- PRIVATE -}
 
 -- | Hidden to assert validity of a fully qualified path
-type FullyQualifiedPath = Maybe FilePath
+-- type FullyQualifiedPath = Maybe FilePath
+data FullyQualifiedPath = FullyQualifiedPath (Maybe FilePath)
 
 -- | Determines if a given file path exists and leads from root
 isFileOrDirectoryFromRoot :: FilePath -> IO Bool
@@ -71,10 +72,10 @@ isFileOrDirectoryFromRoot path = do
 
 -- | Determines if a given fully qualified path points to a file
 isFileForFullyQualifiedPath :: FullyQualifiedPath -> IO Bool
-isFileForFullyQualifiedPath Nothing = return False
-isFileForFullyQualifiedPath (Just path) = doesFileExist path
+isFileForFullyQualifiedPath (FullyQualifiedPath Nothing) = return False
+isFileForFullyQualifiedPath (FullyQualifiedPath (Just path)) = doesFileExist path
 
 -- | Determines if a given fully qualified path points to a file
 isDirectoryForFullyQualifiedPath :: FullyQualifiedPath -> IO Bool
-isDirectoryForFullyQualifiedPath Nothing = return False
-isDirectoryForFullyQualifiedPath (Just path) = doesDirectoryExist path
+isDirectoryForFullyQualifiedPath (FullyQualifiedPath Nothing) = return False
+isDirectoryForFullyQualifiedPath (FullyQualifiedPath (Just path)) = doesDirectoryExist path
