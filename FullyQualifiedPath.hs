@@ -1,3 +1,22 @@
+{-
+Defines the behavior of a "fully qualified path".
+
+A fully qualified path is a path to a valid entry in the file system
+(at the time of lookup), and contains every path component between the
+target and root.
+
+For example, if my current directory structure is
+```
+test
+|- A.txt
+|- B.txt
+```
+the fully qualified path of A.txt would be something like
+```
+/Users/myName/some/files/leading/to/test/A.txt
+```
+-}
+
 module FullyQualifiedPath
 ( getPath,
   directoriesForPath,
