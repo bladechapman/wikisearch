@@ -1,7 +1,9 @@
 module FullyQualifiedPath
 ( getPath,
   directoriesForPath,
-  filesForPath
+  filesForPath,
+  contentsForPath,
+  readFileForPath
 ) where
 
 import System.Directory
@@ -15,27 +17,43 @@ getPath :: FilePath -> IO FullyQualifiedPath
 getPath path = do
   exists <- isFileOrDirectoryFromRoot path
   if exists
-    then return ((Just path) :: FullyQualifiedPath)
+    then return (Just path)
     else return Nothing
 
--- | List the directories present within a fully qualified path
+-- | List the directories of a fully qualified path pointing to a directory
 directoriesForPath :: FullyQualifiedPath -> IO [FullyQualifiedPath]
 directoriesForPath Nothing = return []
 directoriesForPath (Just path) = do
-  contents <- listDirectory path
-  contentPaths <- return (map (\contentPath -> path ++ "/" ++ contentPath) contents)
-  directoryPaths <- ((filterM ((fmap not) . doesFileExist)) contentPaths)
-  return (map Just (directoryPaths))
+  contentPaths <- contentsForPath (Just path)
+  filterM ((fmap not) . isFileForFullyQualifiedPath) contentPaths
 
--- | List the files present within a fully qualified path
+-- | List the files of a fully qualified path pointing to a directory
 filesForPath :: FullyQualifiedPath -> IO [FullyQualifiedPath]
 filesForPath Nothing = return []
 filesForPath (Just path) = do
-  contents <- listDirectory path
-  contentPaths <- return (map (\contentPath -> path ++ "/" ++ contentPath) contents)
-  filePaths <- filterM doesFileExist contentPaths
-  return (map Just (filePaths))
+  contentPaths <- contentsForPath (Just path)
+  filterM isFileForFullyQualifiedPath contentPaths
 
+-- | List the full contents of a fully qualified path pointing to a directory
+contentsForPath :: FullyQualifiedPath -> IO [FullyQualifiedPath]
+contentsForPath Nothing = return []
+contentsForPath (Just path) = do
+  isDirectory <- isDirectoryForFullyQualifiedPath (Just path)
+  if isDirectory
+    then do
+      contents <- listDirectory path
+      return (map (\contentPath -> Just (path ++ "/" ++ contentPath)) contents)
+    else
+      return []
+
+-- | Gives the contents of a file given a fully qualified path
+readFileForPath :: FullyQualifiedPath -> IO String
+readFileForPath Nothing = return ""
+readFileForPath (Just path) = do
+  isDirectory <- doesDirectoryExist path
+  if isDirectory
+    then return ""
+    else readFile path
 
 
 {- PRIVATE -}
@@ -50,3 +68,13 @@ isFileOrDirectoryFromRoot path = do
   isDirectory <- doesDirectoryExist path
   isFromRoot <- return ((head path) == '/')
   return ((isFile || isDirectory) && isFromRoot)
+
+-- | Determines if a given fully qualified path points to a file
+isFileForFullyQualifiedPath :: FullyQualifiedPath -> IO Bool
+isFileForFullyQualifiedPath Nothing = return False
+isFileForFullyQualifiedPath (Just path) = doesFileExist path
+
+-- | Determines if a given fully qualified path points to a file
+isDirectoryForFullyQualifiedPath :: FullyQualifiedPath -> IO Bool
+isDirectoryForFullyQualifiedPath Nothing = return False
+isDirectoryForFullyQualifiedPath (Just path) = doesDirectoryExist path
