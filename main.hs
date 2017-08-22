@@ -1,5 +1,5 @@
 import System.Directory
-import FullyQualifiedPath
+import AbsolutePath
 
 main = getCurrentDirectory
 
