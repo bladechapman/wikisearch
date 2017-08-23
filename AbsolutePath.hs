@@ -20,10 +20,11 @@ the fully qualified path of A.txt would be something like
 module AbsolutePath
 (
   getPath,
-  directoriesForPath,
-  filesForPath,
-  contentsForPath,
-  readFileForPath
+  directoriesForDirectory,
+  filesForDirectory,
+  contentsForDirectory,
+  readFileForPath,
+  AbsolutePath
 ) where
 
 import System.Directory
@@ -41,23 +42,23 @@ getPath path = do
     else return (AbsolutePath Nothing)
 
 -- | List the directories of a fully qualified path pointing to a directory
-directoriesForPath :: AbsolutePath -> IO [AbsolutePath]
-directoriesForPath (AbsolutePath Nothing) = return []
-directoriesForPath fqp = do
-  contentPaths <- contentsForPath fqp
+directoriesForDirectory :: AbsolutePath -> IO [AbsolutePath]
+directoriesForDirectory (AbsolutePath Nothing) = return []
+directoriesForDirectory fqp = do
+  contentPaths <- contentsForDirectory fqp
   filterM ((fmap not) . isFileForAbsolutePath) contentPaths
 
 -- | List the files of a fully qualified path pointing to a directory
-filesForPath :: AbsolutePath -> IO [AbsolutePath]
-filesForPath (AbsolutePath Nothing) = return []
-filesForPath fqp = do
-  contentPaths <- contentsForPath fqp
+filesForDirectory :: AbsolutePath -> IO [AbsolutePath]
+filesForDirectory (AbsolutePath Nothing) = return []
+filesForDirectory fqp = do
+  contentPaths <- contentsForDirectory fqp
   filterM isFileForAbsolutePath contentPaths
 
 -- | List the full contents of a fully qualified path pointing to a directory
-contentsForPath :: AbsolutePath -> IO [AbsolutePath]
-contentsForPath (AbsolutePath Nothing) = return []
-contentsForPath (AbsolutePath (Just path)) = do
+contentsForDirectory :: AbsolutePath -> IO [AbsolutePath]
+contentsForDirectory (AbsolutePath Nothing) = return []
+contentsForDirectory (AbsolutePath (Just path)) = do
   isDirectory <- isDirectoryForAbsolutePath (AbsolutePath (Just path))
   if isDirectory
     then do
@@ -67,20 +68,19 @@ contentsForPath (AbsolutePath (Just path)) = do
       return []
 
 -- | Gives the contents of a file given a fully qualified path
-readFileForPath :: AbsolutePath -> IO String
-readFileForPath (AbsolutePath Nothing) = return ""
+readFileForPath :: AbsolutePath -> IO (Maybe String)
+readFileForPath (AbsolutePath Nothing) = return Nothing
 readFileForPath (AbsolutePath (Just path)) = do
   isDirectory <- doesDirectoryExist path
   if isDirectory
-    then return ""
-    else readFile path
+    then return Nothing
+    else (readFile path) >>= (\x -> return (Just x))
 
 
 {- PRIVATE -}
 
--- | Hidden to assert validity of a fully qualified path
--- type AbsolutePath = Maybe FilePath
-data AbsolutePath = AbsolutePath (Maybe FilePath)
+-- | Constructor hidden to assert validity of a fully qualified path
+data AbsolutePath = AbsolutePath (Maybe FilePath) deriving (Show)
 
 -- | Determines if a given file path exists and leads from root
 isFileOrDirectoryFromRoot :: FilePath -> IO Bool
