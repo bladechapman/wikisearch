@@ -19,16 +19,20 @@ the fully qualified path of A.txt would be something like
 
 module AbsolutePath
 (
+  AbsolutePath,
   getPath,
-  directoriesForDirectory,
-  filesForDirectory,
   contentsForDirectory,
   readFileForPath,
-  AbsolutePath
+  isFileForAbsolutePath,
+  isDirectoryForAbsolutePath
 ) where
 
-import System.Directory
+import Control.Exception
 import Control.Monad
+import Data.Typeable
+import System.Directory
+import System.Environment
+import System.IO
 
 
 {- PUBLIC -}
@@ -40,20 +44,6 @@ getPath path = do
   if exists
     then return (AbsolutePath (Just path))
     else return (AbsolutePath Nothing)
-
--- | List the directories of a fully qualified path pointing to a directory
-directoriesForDirectory :: AbsolutePath -> IO [AbsolutePath]
-directoriesForDirectory (AbsolutePath Nothing) = return []
-directoriesForDirectory fqp = do
-  contentPaths <- contentsForDirectory fqp
-  filterM ((fmap not) . isFileForAbsolutePath) contentPaths
-
--- | List the files of a fully qualified path pointing to a directory
-filesForDirectory :: AbsolutePath -> IO [AbsolutePath]
-filesForDirectory (AbsolutePath Nothing) = return []
-filesForDirectory fqp = do
-  contentPaths <- contentsForDirectory fqp
-  filterM isFileForAbsolutePath contentPaths
 
 -- | List the full contents of a fully qualified path pointing to a directory
 contentsForDirectory :: AbsolutePath -> IO [AbsolutePath]
@@ -74,21 +64,7 @@ readFileForPath (AbsolutePath (Just path)) = do
   isDirectory <- doesDirectoryExist path
   if isDirectory
     then return Nothing
-    else (readFile path) >>= (\x -> return (Just x))
-
-
-{- PRIVATE -}
-
--- | Constructor hidden to assert validity of a fully qualified path
-data AbsolutePath = AbsolutePath (Maybe FilePath) deriving (Show)
-
--- | Determines if a given file path exists and leads from root
-isFileOrDirectoryFromRoot :: FilePath -> IO Bool
-isFileOrDirectoryFromRoot path = do
-  isFile <- doesFileExist path
-  isDirectory <- doesDirectoryExist path
-  isFromRoot <- return ((head path) == '/')
-  return ((isFile || isDirectory) && isFromRoot)
+    else (safeReadFile path) >>= (\x -> return (Just x))
 
 -- | Determines if a given fully qualified path points to a file
 isFileForAbsolutePath :: AbsolutePath -> IO Bool
@@ -99,3 +75,29 @@ isFileForAbsolutePath (AbsolutePath (Just path)) = doesFileExist path
 isDirectoryForAbsolutePath :: AbsolutePath -> IO Bool
 isDirectoryForAbsolutePath (AbsolutePath Nothing) = return False
 isDirectoryForAbsolutePath (AbsolutePath (Just path)) = doesDirectoryExist path
+
+
+{- PRIVATE -}
+
+-- | Constructor hidden to assert validity of a fully qualified path
+data AbsolutePath = AbsolutePath (Maybe FilePath)
+instance Show AbsolutePath where
+  show (AbsolutePath (Just str)) = str
+  show (AbsolutePath Nothing) = ""
+
+-- | Determines if a given file path exists and leads from root
+isFileOrDirectoryFromRoot :: FilePath -> IO Bool
+isFileOrDirectoryFromRoot path = do
+  isFile <- doesFileExist path
+  isDirectory <- doesDirectoryExist path
+  isFromRoot <- return ((head path) == '/')
+  return ((isFile || isDirectory) && isFromRoot)
+
+-- | Reads a file in latin1 encoding.
+-- this is to get aroudn the
+-- hGetContents: invalid argument (invalid byte sequence) exception
+safeReadFile :: FilePath -> IO String
+safeReadFile path = do
+  h <- openFile path ReadMode
+  hSetEncoding h latin1
+  hGetContents h
