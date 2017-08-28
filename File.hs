@@ -1,8 +1,8 @@
 module File
 (
-  File,
-  FileType (...)
-  getFileForPath,
+  File (..),
+  FileType,
+  getFileForPath
 ) where
 
 import AbsolutePath
